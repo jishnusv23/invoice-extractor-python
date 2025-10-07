@@ -46,15 +46,7 @@ def is_image(file_path:str)->bool:
     return ext in ['.jpg','.png','.jpeg','.gif','.web']
 
 def validate_file_type(file_path: str) -> None:
-    """
-    Validate file type
-    
-    Args:
-        file_path: Path to the file
-        
-    Raises:
-        ValueError: If file type is not supported
-    """
+  
     ext = Path(file_path).suffix.lower()
     valid_extensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.pdf']
     
@@ -65,15 +57,7 @@ def validate_file_type(file_path: str) -> None:
 
 
 def read_file_as_buffer(file_path: str) -> Tuple[bytes, str]:
-    """
-    Read file and return buffer with mime type
     
-    Args:
-        file_path: Path to the file
-        
-    Returns:
-        Tuple of (file_buffer, mime_type)
-    """
     validate_file_type(file_path)
     
     with open(file_path, 'rb') as f:

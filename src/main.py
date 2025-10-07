@@ -59,15 +59,14 @@ def main():
 
         timestamp = int(datetime.now().timestamp())
         invoice_number = extracted_data.invoice_number or "unknown"
-
-        
         output_dir = Path(__file__).parent.parent / "output"
         output_dir.mkdir(exist_ok=True)
 
         output_path = output_dir / f"invoice-{invoice_number}-{timestamp}.json"
 
-        with open(output_path, 'w', encoding='utf-8') as f:
-            json.dump(asdict(extracted_data), f, indent=2, ensure_ascii=False)
+        with open(output_path, 'w', encoding='utf-8') as f: 
+                json.dump(extracted_data.model_dump(), f, indent=2, ensure_ascii=False)
+
 
         print(f"\n💾 Output saved to: {output_path}")
         print("\n✅ INVOICE EXTRACTED SUCCESSFULLY!")
