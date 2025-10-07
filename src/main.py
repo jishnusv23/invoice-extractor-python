@@ -41,7 +41,7 @@ def main():
 
     
         prompt = build_invoice_prompt()
-
+        
     
         extracted_data = extract_invoice_from_image(file_buffer, mime_type, prompt)
         print("✅ Received response from OpenRouter")
