@@ -1,0 +1,47 @@
+
+generator client {
+  provider             = "prisma-client-py"
+  interface            = "asyncio"
+  recursive_type_depth = 5
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model AircraftUtilization {
+  id            String          @id @default(uuid())
+  airline       String?
+  month         String?
+  msn           String?
+  registration  String?
+  aircraft_type String?
+  days_flown    Int?
+  created_at    DateTime        @default(now())
+  updated_at    DateTime        @updatedAt
+
+  components    ComponentData[]
+
+  @@index([registration, month])
+  @@index([msn])
+  @@map("aircraft_utilization")
+}
+
+model ComponentData {
+  id              String   @id @default(uuid())
+  component_type  String
+  TSN             Float?
+  CSN             Int?
+  MonthlyUtil_Hrs Float?
+  MonthlyUtil_Cyc Int?
+  SerialNumber    String?
+  location        String?
+
+  aircraftId      String
+  aircraft        AircraftUtilization @relation(fields: [aircraftId], references: [id], onDelete: Cascade)
+
+  @@index([component_type])
+  @@index([SerialNumber])
+  @@map("component_data")
+}

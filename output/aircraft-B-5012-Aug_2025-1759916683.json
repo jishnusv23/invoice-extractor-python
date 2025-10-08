@@ -1,0 +1,66 @@
+{
+  "airline": "LG AIRLINES",
+  "month": "Aug 2025",
+  "msn": "1408",
+  "registration": "B-5012",
+  "aircraft_type": "A330-300",
+  "days_flown": null,
+  "components": {
+    "Airframe": {
+      "TSN": 4300.0,
+      "CSN": 1450,
+      "MonthlyUtil_Hrs": 261.0,
+      "MonthlyUtil_Cyc": 41,
+      "SerialNumber": "1408",
+      "location": "B-5012"
+    },
+    "Engine1": {
+      "TSN": 4300.0,
+      "CSN": 1450,
+      "MonthlyUtil_Hrs": 261.0,
+      "MonthlyUtil_Cyc": 41,
+      "SerialNumber": "829090",
+      "location": "B-5012"
+    },
+    "Engine2": {
+      "TSN": 4300.0,
+      "CSN": 1450,
+      "MonthlyUtil_Hrs": 261.0,
+      "MonthlyUtil_Cyc": 41,
+      "SerialNumber": "890234",
+      "location": "B-5012"
+    },
+    "APU": {
+      "TSN": 1010.0,
+      "CSN": 2245,
+      "MonthlyUtil_Hrs": 254.0,
+      "MonthlyUtil_Cyc": 305,
+      "SerialNumber": "P-19184",
+      "location": "B-1608"
+    },
+    "LandingGearLeft": {
+      "TSN": 4300.0,
+      "CSN": 1450,
+      "MonthlyUtil_Hrs": 261.0,
+      "MonthlyUtil_Cyc": 41,
+      "SerialNumber": "MDG6788",
+      "location": null
+    },
+    "LandingGearRight": {
+      "TSN": 4300.0,
+      "CSN": 1450,
+      "MonthlyUtil_Hrs": 261.0,
+      "MonthlyUtil_Cyc": 41,
+      "SerialNumber": "MDG6789",
+      "location": null
+    },
+    "LandingGearNose": {
+      "TSN": 4300.0,
+      "CSN": 1450,
+      "MonthlyUtil_Hrs": 261.0,
+      "MonthlyUtil_Cyc": 41,
+      "SerialNumber": "B4324",
+      "location": null
+    }
+  }
+}
