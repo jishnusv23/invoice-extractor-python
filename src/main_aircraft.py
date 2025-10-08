@@ -5,7 +5,7 @@ from datetime import datetime
 
 from src.utils.prompt.aircraft_prompt import build_aircraft_prompt
 from src.utils.reader.file_reader import validate_file_type
-from src.services.aircraft_service import extract_aircraft_from_pdf
+from src.services.aircraft_service import extract_aircraft_from_pdf  
 from src.validators.aircraft_validator import (
     print_validation_results,
     validate_aircraft_utilization
@@ -16,13 +16,13 @@ def main():
     print("=" * 50)
 
     try:
-        # get input file path 
+        
         if len(sys.argv) > 1:
             input_path = Path(sys.argv[1]).resolve()
         else:
             input_path = Path(__file__).parent.parent / "samples" / "aircraft_report.pdf"
         
-        print(f"\n Processing file: {input_path}")
+        print(f"\n📂 Processing file: {input_path}")
 
         if not input_path.exists():
             raise FileNotFoundError(f"File not found: {input_path}")
@@ -34,10 +34,16 @@ def main():
 
         print("📄 Processing PDF file...")
 
+        
         prompt = build_aircraft_prompt()
 
+        
         print("\n🔄 Extracting data from PDF...")
-        extracted_data = extract_aircraft_from_pdf(str(input_path), prompt)
+        extracted_data = extract_aircraft_from_pdf(
+            file_path=str(input_path),
+            prompt=prompt,
+            dpi=450  
+        )
         print("✅ Received response from AI")
 
         
@@ -45,6 +51,7 @@ def main():
         is_valid, warnings = validate_aircraft_utilization(extracted_data)
         print_validation_results(is_valid, warnings)
 
+        
         print("\n💾 Saving to file...")
         timestamp = int(datetime.now().timestamp())
         registration = extracted_data.registration or "unknown"
@@ -64,10 +71,10 @@ def main():
         print("=" * 60)
 
     except FileNotFoundError as e:
-        print(f"\n❌ Error: {e}")
+        print(f"\n❌ File Error: {e}")
         sys.exit(1)
     except ValueError as e:
-        print(f"\n❌ Error: {e}")
+        print(f"\n❌ Validation Error: {e}")
         sys.exit(1)
     except Exception as e:
         print(f"\n❌ Unexpected Error: {e}")

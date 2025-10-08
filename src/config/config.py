@@ -9,6 +9,7 @@ class Config:
     )
     MODEL = os.getenv("MODEL", "openai/gpt-4o")
     IMAGE_MODEL = os.getenv("IMAGE_MODEL", "openai/gpt-4o")
+    VISION_MODEL = "openai/gpt-4o"
     TEXT_MODEL = os.getenv("TEXT_MODEL", "gpt-4o-mini")
     TEMPERATURE = float(os.getenv("TEMPERATURE", 0.0))
     MAX_RETRIES = int(os.getenv("MAX_RETRIES", 3))
