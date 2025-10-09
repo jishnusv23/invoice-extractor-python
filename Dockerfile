@@ -16,14 +16,8 @@ RUN pip install --no-cache-dir --upgrade pip && \
 # Copy application code
 COPY . .
 
-# Generate Prisma client FIRST (as root - has write permissions)
+# Generate Prisma client
 RUN python -m prisma generate
-
-# THEN create non-root user (after generation is done)
-RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
-
-# Switch to non-root user
-USER appuser
 
 # Expose port
 EXPOSE 8000
