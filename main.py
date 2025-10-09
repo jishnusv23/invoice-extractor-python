@@ -116,7 +116,7 @@ async def extract_aircraft_data(
         extracted_data = extract_aircraft_from_pdf(
             file_path=temp_file_path,
             prompt=prompt,
-            dpi=450
+            dpi=150
         )
         logger.info("✅ Data extraction completed")
 
@@ -217,5 +217,5 @@ if __name__ == "__main__":
         "main:app",
         host="0.0.0.0",
         port=8000,
-        reload=False
+        reload=True
     )
