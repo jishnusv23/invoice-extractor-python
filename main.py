@@ -6,6 +6,10 @@ from datetime import datetime
 import tempfile
 import shutil
 import logging
+import os
+import stat
+import subprocess
+import sys
 from typing import Dict, Any
 from src.utils.prompt.aircraft_prompt import build_aircraft_prompt
 from src.validators.aircraft_validator import validate_aircraft_utilization
@@ -34,11 +38,50 @@ app.add_middleware(
 
 db_service = get_db_service()
 
+async def ensure_prisma_setup():
+    """Ensure Prisma binary is available before startup"""
+    binary_name = "prisma-query-engine-debian-openssl-3.0.x"
+    
+    print("🔧 Checking Prisma setup...")
+    
+    # Check if binary exists and is executable
+    if os.path.exists(binary_name):
+        st = os.stat(binary_name)
+        os.chmod(binary_name, st.st_mode | stat.S_IEXEC)
+        print(f"✅ Prisma binary found: {binary_name}")
+        return True
+    
+    print("❌ Prisma binary missing, attempting to fetch...")
+    
+    try:
+        # Try to fetch the binary
+        result = subprocess.run([
+            sys.executable, "-m", "prisma", "py", "fetch"
+        ], capture_output=True, text=True, timeout=60)
+        
+        if result.returncode == 0:
+            if os.path.exists(binary_name):
+                st = os.stat(binary_name)
+                os.chmod(binary_name, st.st_mode | stat.S_IEXEC)
+                print("✅ Successfully fetched Prisma binary")
+                return True
+            else:
+                print("❌ prisma py fetch succeeded but binary not found")
+        else:
+            print(f"❌ prisma py fetch failed: {result.stderr}")
+            
+    except Exception as e:
+        print(f"❌ Error fetching Prisma binary: {e}")
+    
+    return False
+
 
 @app.on_event("startup")
 async def startup_event():
     """Connect to database on startup"""
     try:
+        if not await ensure_prisma_setup():
+         raise Exception("Failed to set up Prisma engine")
         await db_service.connect()
         logger.info("✅ Application started and database connected")
     except Exception as e:
