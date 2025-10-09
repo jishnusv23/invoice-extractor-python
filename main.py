@@ -6,8 +6,7 @@ from datetime import datetime
 import tempfile
 import shutil
 import logging
-import os
-import stat
+
 import subprocess
 import sys
 from typing import Dict, Any
@@ -39,41 +38,25 @@ app.add_middleware(
 db_service = get_db_service()
 
 async def ensure_prisma_setup():
-    """Ensure Prisma binary is available before startup"""
-    binary_name = "prisma-query-engine-debian-openssl-3.0.x"
-    
-    print("🔧 Checking Prisma setup...")
-    
-    # Check if binary exists and is executable
-    if os.path.exists(binary_name):
-        st = os.stat(binary_name)
-        os.chmod(binary_name, st.st_mode | stat.S_IEXEC)
-        print(f"✅ Prisma binary found: {binary_name}")
-        return True
-    
-    print("❌ Prisma binary missing, attempting to fetch...")
+    """Let Prisma handle binary management automatically"""
+    print("🔧 Setting up Prisma...")
     
     try:
-        # Try to fetch the binary
+        # Generate Prisma client if not already done
         result = subprocess.run([
-            sys.executable, "-m", "prisma", "py", "fetch"
+            sys.executable, "-m", "prisma", "generate"
         ], capture_output=True, text=True, timeout=60)
         
-        if result.returncode == 0:
-            if os.path.exists(binary_name):
-                st = os.stat(binary_name)
-                os.chmod(binary_name, st.st_mode | stat.S_IEXEC)
-                print("✅ Successfully fetched Prisma binary")
-                return True
-            else:
-                print("❌ prisma py fetch succeeded but binary not found")
-        else:
-            print(f"❌ prisma py fetch failed: {result.stderr}")
+        if result.returncode != 0:
+            print(f"❌ Prisma generate failed: {result.stderr}")
+            return False
             
+        print("✅ Prisma setup completed")
+        return True
+        
     except Exception as e:
-        print(f"❌ Error fetching Prisma binary: {e}")
-    
-    return False
+        print(f"❌ Error setting up Prisma: {e}")
+        return False
 
 
 @app.on_event("startup")
