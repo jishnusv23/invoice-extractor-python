@@ -6,10 +6,6 @@ from datetime import datetime
 import tempfile
 import shutil
 import logging
-import subprocess
-import prisma
-import os
-import sys
 from typing import Dict, Any
 from src.utils.prompt.aircraft_prompt import build_aircraft_prompt
 from src.validators.aircraft_validator import validate_aircraft_utilization
@@ -41,18 +37,13 @@ db_service = get_db_service()
 
 @app.on_event("startup")
 async def startup_event():
+    """Connect to database on startup"""
     try:
-        # Fetch Prisma binaries if missing
-        if not os.path.exists(prisma._base_client.BINARY_PATHS.query_engine[0]):
-            logger.info("🔍 Fetching Prisma binaries at runtime...")
-            await prisma.pyfetch()
-
         await db_service.connect()
         logger.info("✅ Application started and database connected")
     except Exception as e:
         logger.error(f"❌ Startup failed: {e}")
         raise
-
 
 
 @app.on_event("shutdown")
