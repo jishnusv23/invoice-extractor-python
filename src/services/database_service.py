@@ -41,8 +41,7 @@ class DatabaseService:
         
         Args:
             registration: Aircraft registration number
-            msn: Manufacturer Serial Number
-            month: Month of the report
+           
             
         Returns:
             Existing record if found, None otherwise
@@ -93,7 +92,7 @@ class DatabaseService:
                     f"   Registration: {data.registration}\n"
                 
                 )
-                return existing_record.id, False  # Return existing ID with False flag
+                return existing_record.id, False  
             
             # Proceed with creating new record
             components_to_create = []
