@@ -37,34 +37,12 @@ app.add_middleware(
 
 db_service = get_db_service()
 
-async def ensure_prisma_setup():
-    """Let Prisma handle binary management automatically"""
-    print("🔧 Setting up Prisma...")
-    
-    try:
-        # Generate Prisma client if not already done
-        result = subprocess.run([
-            sys.executable, "-m", "prisma", "generate"
-        ], capture_output=True, text=True, timeout=60)
-        
-        if result.returncode != 0:
-            print(f"❌ Prisma generate failed: {result.stderr}")
-            return False
-            
-        print("✅ Prisma setup completed")
-        return True
-        
-    except Exception as e:
-        print(f"❌ Error setting up Prisma: {e}")
-        return False
-
 
 @app.on_event("startup")
 async def startup_event():
     """Connect to database on startup"""
     try:
-        if not await ensure_prisma_setup():
-         raise Exception("Failed to set up Prisma engine")
+        
         await db_service.connect()
         logger.info("✅ Application started and database connected")
     except Exception as e:
