@@ -21,12 +21,18 @@ RUN pip install --no-cache-dir --upgrade pip && \
 # Copy application code
 COPY . .
 
-# Generate Prisma client (Python client code only)
-RUN python -m prisma generate
-
 # Create non-root user for security (ensure ownership of /app)
 RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
+
+# Set Prisma cache path to a writable directory
+ENV PRISMA_HOME=/app/.prisma
+RUN mkdir -p /app/.prisma && chown -R appuser:appuser /app/.prisma
+
+# Switch to non-root user
 USER appuser
+
+# Generate Prisma client (Python client code only)
+RUN python -m prisma generate
 
 # Expose port (Render will override this, but good practice)
 EXPOSE 8000
