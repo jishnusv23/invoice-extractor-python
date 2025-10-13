@@ -7,19 +7,18 @@ import tempfile
 import shutil
 import logging
 
-import subprocess
-import sys
 from typing import Dict, Any
 from src.utils.prompt.aircraft_prompt import build_aircraft_prompt
 from src.validators.aircraft_validator import validate_aircraft_utilization
 from src.services.aircraft_service import extract_aircraft_from_pdf
-from src.services.database_service import get_db_service
+from src.services.operations_service import get_operations_service
 from src.utils.reader.file_reader import validate_file_type
+from src.models.operation_models import SaveOperationsRequest, SaveOperationsResponse
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Create instance 
+# Create FastAPI instance 
 app = FastAPI(
     title="Aircraft Utilization Data Extractor API",
     description="API for extracting PDF reports",
@@ -35,15 +34,15 @@ app.add_middleware(
     allow_headers=["*"]
 )
 
-db_service = get_db_service()
+# Initialize services
+operations_service = get_operations_service()
 
 
 @app.on_event("startup")
 async def startup_event():
     """Connect to database on startup"""
     try:
-        
-        await db_service.connect()
+        await operations_service.connect()
         logger.info("✅ Application started and database connected")
     except Exception as e:
         logger.error(f"❌ Startup failed: {e}")
@@ -53,7 +52,7 @@ async def startup_event():
 @app.on_event("shutdown")
 async def shutdown_event():
     """Disconnect from database on shutdown"""
-    await db_service.disconnect()
+    await operations_service.disconnect()
     logger.info("👋 Application shutdown and database disconnected")
 
 
@@ -73,8 +72,189 @@ async def health_check():
     return {
         "status": "healthy",
         "timestamp": datetime.now().isoformat(),
-        "database": "connected" if db_service._connected else "disconnected"
+        "database": "connected" if operations_service._connected else "disconnected"
     }
+
+
+@app.post("/api/save-operations-data", response_model=SaveOperationsResponse)
+async def save_operations_data(request: SaveOperationsRequest):
+    """
+    Save extracted operations data to PostgreSQL database
+    
+    Args:
+        request: SaveOperationsRequest containing lessees, month, and fileName
+        
+    Returns:
+        SaveOperationsResponse with success status and saved data counts
+    """
+    try:
+        logger.info(f"📥 Received request to save data for month: {request.month}")
+        logger.info(f"📊 Data contains {len(request.lessees)} lessees")
+        
+        # Check if data already exists for this month
+        exists = await operations_service.check_month_exists(request.month)
+        if exists:
+            logger.warning(f"⚠️ Data already exists for month: {request.month}")
+            return SaveOperationsResponse(
+                success=False,
+                message=f"Data for month {request.month} already exists. Please delete existing data first or use a different month.",
+                data=None
+            )
+        
+        # Save data to database
+        result = await operations_service.save_operations_data(
+            lessees=request.lessees,
+            month=request.month,
+            file_name=request.fileName
+        )
+        
+        if result["errors"]:
+            logger.error(f"❌ Errors occurred: {result['errors']}")
+            return SaveOperationsResponse(
+                success=False,
+                message="Some errors occurred during save",
+                data={
+                    "saved_lessees": result["saved_lessees"],
+                    "saved_assets": result["saved_assets"],
+                    "saved_components": result["saved_components"]
+                },
+                errors=result["errors"]
+            )
+        
+        logger.info(f"✅ Successfully saved: {result['saved_lessees']} lessees, "
+                   f"{result['saved_assets']} assets, {result['saved_components']} components")
+        
+        return SaveOperationsResponse(
+            success=True,
+            message="Data saved successfully",
+            data={
+                "saved_lessees": result["saved_lessees"],
+                "saved_assets": result["saved_assets"],
+                "saved_components": result["saved_components"],
+                "month": request.month,
+                "file_name": request.fileName,
+                "saved_at": datetime.utcnow().isoformat()
+            }
+        )
+        
+    except Exception as e:
+        logger.error(f"💥 Error saving operations data: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to save operations data: {str(e)}"
+        )
+
+
+@app.get("/api/operations-data/{month}")
+async def get_operations_data(month: str):
+    """
+    Retrieve operations data for a specific month
+    
+    Args:
+        month: Month string (e.g., "2024-01", "January 2024")
+        
+    Returns:
+        JSON response with operations data for the specified month
+    """
+    try:
+        logger.info(f"📥 Fetching data for month: {month}")
+        
+        data = await operations_service.get_operations_by_month(month)
+        
+        if not data:
+            return {
+            "success": False,
+            "data": [],
+            "month": month,
+            "count": 0
+            }
+        
+        logger.info(f"✅ Found {len(data)} lessees for month: {month}")
+        
+        return {
+            "success": True,
+            "data": data,
+            "month": month,
+            "count": len(data)
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"💥 Error fetching operations data: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to fetch operations data: {str(e)}"
+        )
+
+
+@app.get("/api/operations-data")
+async def get_all_operations_data():
+    """
+    Retrieve all operations data
+    
+    Returns:
+        JSON response with all operations data
+    """
+    try:
+        logger.info("📥 Fetching all operations data")
+        
+        data = await operations_service.get_all_operations()
+        
+        logger.info(f"✅ Found {len(data)} total lessees")
+        
+        return {
+            "success": True,
+            "data": data,
+            "count": len(data)
+        }
+        
+    except Exception as e:
+        logger.error(f"💥 Error fetching all operations data: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to fetch operations data: {str(e)}"
+        )
+
+
+@app.delete("/api/operations-data/{month}")
+async def delete_operations_data(month: str):
+    """
+    Delete operations data for a specific month
+    
+    Args:
+        month: Month string to delete
+        
+    Returns:
+        JSON response with deletion status
+    """
+    try:
+        logger.info(f"🗑️ Deleting data for month: {month}")
+        
+        deleted = await operations_service.delete_operations_by_month(month)
+        
+        if not deleted:
+            raise HTTPException(
+                status_code=404,
+                detail=f"No data found for month: {month}"
+            )
+        
+        logger.info(f"✅ Successfully deleted data for month: {month}")
+        
+        return {
+            "success": True,
+            "message": f"Data for month {month} deleted successfully",
+            "month": month
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"💥 Error deleting operations data: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to delete operations data: {str(e)}"
+        )
 
 
 @app.post("/extract", response_model=Dict[str, Any])
@@ -88,7 +268,7 @@ async def extract_aircraft_data(
         file: PDF file upload
         
     Returns:
-        JSON response with extracted data and database storage status
+        JSON response with extracted data
     """
     temp_file_path = None
 
@@ -126,16 +306,10 @@ async def extract_aircraft_data(
         if not is_valid:
             logger.warning(f"⚠️ Validation warnings: {len(warnings)}")
         
-        # Store data in database 
-        logger.info("💾 Storing extracted data in database...")
-        record_id, is_new = await db_service.store_aircraft_data(extracted_data)
-
         # Prepare response
         response_data = {
             "success": True,
-            "message": "Data extracted successfully" if is_new else "Duplicate record detected",
-            "is_new_record": is_new,
-            "record_id": record_id,
+            "message": "Data extracted successfully",
             "filename": file.filename,
             "extracted_data": extracted_data.model_dump(),
             "validation": {
@@ -144,14 +318,9 @@ async def extract_aircraft_data(
             },
             "timestamp": datetime.now().isoformat()
         }
-
-        if is_new:
-            logger.info(f"✅ New record created with ID: {record_id}")
-        else:
-            logger.warning(f"⚠️ Duplicate record detected for: {extracted_data.registration}")
         
         return JSONResponse(
-            status_code=200 if is_new else 409,
+            status_code=200,
             content=response_data
         )
         
@@ -173,42 +342,6 @@ async def extract_aircraft_data(
                 logger.info("🧹 Cleaned up temporary file")
             except Exception as e:
                 logger.warning(f"⚠️ Could not delete temporary file: {e}")
-
-
-@app.get("/aircraft/{record_id}")
-async def get_aircraft_by_id(record_id: str):
-    """ 
-    Retrieve aircraft data by record ID
-
-    Args:
-        record_id: Database record ID 
-        
-    Returns:
-        Aircraft data with all components 
-    """
-    try:
-        aircraft_data = await db_service.get_aircraft_by_id(record_id)
-
-        if not aircraft_data:
-            raise HTTPException(
-                status_code=404,
-                detail=f"Aircraft record not found with ID: {record_id}"
-            )
-        
-        return {
-            "success": True,
-            "data": aircraft_data
-        }
-        
-    except HTTPException:
-        raise
-        
-    except Exception as e:
-        logger.error(f"❌ Error retrieving aircraft data: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Error retrieving data: {str(e)}"
-        )
 
 
 if __name__ == "__main__":
