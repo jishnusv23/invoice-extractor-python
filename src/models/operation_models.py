@@ -50,3 +50,8 @@ class SaveOperationsResponse(BaseModel):
     message: str
     data: Optional[dict] = None
     errors: Optional[List[str]] = None
+
+class ExtractFromUrlRequest(BaseModel):
+    fileUrl: str
+    fileName: str
+    month: str

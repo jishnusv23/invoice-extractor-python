@@ -6,6 +6,7 @@ from datetime import datetime
 import tempfile
 import shutil
 import logging
+import httpx
 
 from typing import Dict, Any
 from src.utils.prompt.aircraft_prompt import build_aircraft_prompt
@@ -13,7 +14,7 @@ from src.validators.aircraft_validator import validate_aircraft_utilization
 from src.services.aircraft_service import extract_aircraft_from_pdf
 from src.services.operations_service import get_operations_service
 from src.utils.reader.file_reader import validate_file_type
-from src.models.operation_models import SaveOperationsRequest, SaveOperationsResponse
+from src.models.operation_models import SaveOperationsRequest, SaveOperationsResponse,ExtractFromUrlRequest
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -143,6 +144,118 @@ async def save_operations_data(request: SaveOperationsRequest):
             status_code=500,
             detail=f"Failed to save operations data: {str(e)}"
         )
+    
+@app.post("/api/extract-from-url", response_model=Dict[str, Any])
+async def extract_from_url(request: ExtractFromUrlRequest):
+    """
+    Extract aircraft utilization data from a URL-hosted PDF.
+    Checks if airline already exists in database (regardless of month).
+    
+    Args:
+        request: ExtractFromUrlRequest containing fileUrl, fileName, and month
+        
+    Returns:
+        JSON response with either existing airline data from database or message that airline not found
+    """
+    temp_file_path = None
+
+    try:
+        logger.info(f"📥 Downloading PDF from URL: {request.fileUrl}")
+        
+        # Download file from URL
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.get(request.fileUrl)
+            response.raise_for_status()
+            
+            # Save to temporary file
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as temp_file:
+                temp_file.write(response.content)
+                temp_file_path = temp_file.name
+        
+        logger.info(f"✅ File downloaded: {request.fileName}")
+
+        # Validate file type
+        validate_file_type(temp_file_path)
+
+        # Build prompt
+        prompt = build_aircraft_prompt()
+
+        logger.info("🔄 Extracting airline name from PDF...")
+        extracted_data = extract_aircraft_from_pdf(
+            file_path=temp_file_path,
+            prompt=prompt,
+            dpi=150
+        )
+        logger.info(f"✅ Data extraction completed: {extracted_data}")
+
+        # Get the airline name from extracted data
+        airline_name = extracted_data.airline
+        logger.info(f"🔍 Checking if airline '{airline_name}' exists in database")
+
+        # Get all data from database
+        all_data = await operations_service.get_all_operations()
+
+        # Check if airline exists in the database (case-insensitive)
+        airline_data = None
+        if all_data:
+            for lessee in all_data:
+                db_name = lessee.get('name', '').casefold()
+                extracted_name = airline_name.casefold()
+                if db_name == extracted_name or lessee.get('lessee_name', '').casefold() == extracted_name:
+                    airline_data = lessee
+                    break
+
+            if airline_data:
+                logger.info(f"✅ Airline '{airline_name}' found in database.")
+                return JSONResponse(
+                    status_code=200,
+                    content={
+                        "success": True,
+                        "message": f"Airline '{airline_name}' already exists in database",
+                        "data_source": "database",
+                        "airline": airline_name,
+                        "data": airline_data,
+                        "timestamp": datetime.now().isoformat()
+                    }
+                )
+
+                logger.info(f"ℹ️ Airline '{airline_name}' not found in database.")
+
+        
+        return JSONResponse(
+            status_code=200,
+            content={
+                "success": False,
+                "message": f"Airline '{airline_name}' not found in database",
+                "data_source": "database",
+                "airline": airline_name,
+                "data": [],
+                "timestamp": datetime.now().isoformat()
+            }
+        )
+        
+    except httpx.HTTPError as e:
+        logger.error(f"❌ Error downloading file: {str(e)}")
+        raise HTTPException(
+            status_code=400,
+            detail=f"Error downloading file from URL: {str(e)}"
+        )
+        
+    except Exception as e:
+        logger.error(f"❌ Error processing file: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error processing file: {str(e)}"
+        )
+        
+    finally:
+        # Cleanup temporary file
+        if temp_file_path and Path(temp_file_path).exists():
+            try:
+                Path(temp_file_path).unlink()
+                logger.info("🧹 Cleaned up temporary file")
+            except Exception as e:
+                logger.warning(f"⚠️ Could not delete temporary file: {e}")  
 
 
 @app.get("/api/operations-data/{month}")
