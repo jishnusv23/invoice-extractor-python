@@ -172,7 +172,7 @@ async def extract_from_url(request: ExtractFromUrlRequest):
                 temp_file.write(response.content)
                 temp_file_path = temp_file.name
         
-        logger.info(f"✅ File downloaded: {request.fileName}")
+        
 
         # Validate file type
         validate_file_type(temp_file_path)
@@ -180,7 +180,7 @@ async def extract_from_url(request: ExtractFromUrlRequest):
         # Build prompt
         prompt = build_aircraft_prompt()
 
-        logger.info("🔄 Extracting airline name from PDF...")
+        
         extracted_data = extract_aircraft_from_pdf(
             file_path=temp_file_path,
             prompt=prompt,
@@ -190,7 +190,7 @@ async def extract_from_url(request: ExtractFromUrlRequest):
 
         # Get the airline name from extracted data
         airline_name = extracted_data.airline
-        logger.info(f"🔍 Checking if airline '{airline_name}' exists in database")
+        
 
         # Get all data from database
         all_data = await operations_service.get_all_operations()
@@ -206,7 +206,7 @@ async def extract_from_url(request: ExtractFromUrlRequest):
                     break
 
             if airline_data:
-                logger.info(f"✅ Airline '{airline_name}' found in database.")
+                
                 return JSONResponse(
                     status_code=200,
                     content={
@@ -219,7 +219,7 @@ async def extract_from_url(request: ExtractFromUrlRequest):
                     }
                 )
 
-                logger.info(f"ℹ️ Airline '{airline_name}' not found in database.")
+            
 
         
         return JSONResponse(
